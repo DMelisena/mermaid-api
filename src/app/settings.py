@@ -87,7 +87,10 @@ MIDDLEWARE = [
     "api.middleware.MetricsMiddleware",
 ]
 
-DEBUG = False
+# Django debug mode is opt-in in every environment: set DEBUG=True (e.g. in a
+# local .env) to turn it on. A public deployment must never run with it on,
+# because error pages then show tracebacks and settings.
+DEBUG = (os.environ.get("DEBUG") or "").strip().lower() in ("true", "1", "yes")
 TESTING = False
 DEBUG_LEVEL = "WARNING"
 CONN_MAX_AGE = 0
@@ -102,7 +105,7 @@ _dev_emails = os.environ.get("DEV_EMAILS") or ""
 DEV_EMAILS = [email.strip() for email in _dev_emails.split(",")]
 
 _allowed_hosts = os.environ.get("ALLOWED_HOSTS") or ""
-ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",")]
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
 # In-container health probes hit http://localhost:8081/health/ (Host: localhost).
 # Allow it so it doesn't raise DisallowedHost on every probe.
 ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
@@ -139,8 +142,10 @@ if IN_ECS:
 if ENVIRONMENT not in ("dev", "prod"):
     DEBUG_LEVEL = "DEBUG"
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    ALLOWED_HOSTS = ["*"]
-    DEBUG = True
+    # Outside dev/prod any host is accepted unless ALLOWED_HOSTS is set, so a
+    # self-hosted deployment can still restrict it.
+    if not _allowed_hosts.strip():
+        ALLOWED_HOSTS = ["*"]
     MEDIA_ROOT = os.path.join(BASE_DIR, "media")
     MEDIA_URL = "/media/"
 
@@ -194,8 +199,10 @@ REST_FRAMEWORK = {
 
 # Database SSL. RDS enforces SSL (rds.force_ssl=1) in dev/prod, so require it
 # there. Local/CI Postgres (docker-compose, GitHub Actions service) serves no
-# TLS, so no sslmode is set for those.
-_db_options = {"sslmode": "require"} if ENVIRONMENT in ("dev", "prod") else {}
+# TLS, so no sslmode is set for those. DB_SSLMODE (a libpq sslmode such as
+# disable, prefer or require) overrides either default.
+_db_sslmode = os.environ.get("DB_SSLMODE") or ("require" if ENVIRONMENT in ("dev", "prod") else "")
+_db_options = {"sslmode": _db_sslmode} if _db_sslmode else {}
 
 DATABASES = {
     "default": {
@@ -479,7 +486,8 @@ SQS_MESSAGE_VISIBILITY = int(os.environ.get("SQS_MESSAGE_VISIBILITY", "60"))
 QUEUE_NAME = os.environ.get("SQS_QUEUE_NAME", "mermaid-local")  # required
 IMAGE_QUEUE_NAME = os.environ.get("IMAGE_SQS_QUEUE_NAME", "mermaid-local")  # required
 USE_FIFO = os.environ.get("USE_FIFO", "True")
-# Override default boto3 url for SQS
+# Override default boto3 url for SQS. SQS_ENDPOINT_URL applies in any ENV; set it
+# empty to use AWS's own endpoint outside dev/prod.
 ENDPOINT_URL = os.environ.get(
     "SQS_ENDPOINT_URL",
     None if ENVIRONMENT in ("dev", "prod") else "http://sqs:9324",

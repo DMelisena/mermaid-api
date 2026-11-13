@@ -6,7 +6,9 @@ from django.db import migrations
 def trigger_fishgrouping_revision(apps, schema_editor):
     FishGrouping = apps.get_model("api", "FishGrouping")
     grouping = FishGrouping.objects.first()
-    grouping.save()
+    # A fresh database has no groupings yet, so there is nothing to bump.
+    if grouping is not None:
+        grouping.save()
 
 
 class Migration(migrations.Migration):
