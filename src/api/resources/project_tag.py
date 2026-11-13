@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
-from ..models import Tag
+from ..models import Project, Tag
 from ..permissions import UnauthenticatedReadOnlyPermission
 from .base import BaseAPIFilterSet, BaseAPISerializer, BaseApiViewSet
 
@@ -23,9 +23,16 @@ class ProjectTagViewSet(BaseApiViewSet):
     permission_classes = [UnauthenticatedReadOnlyPermission]
     filterset_class = ProjectTagFilterSet
     serializer_class = ProjectTagSerializer
-    pt = ContentType.objects.get(app_label="api", model="project")
-    queryset = (
-        Tag.objects.filter(Q(tagged_items__content_type_id=pt.pk) | Q(tagged_items__isnull=True))
-        .distinct()
-        .order_by("name")
-    )
+    queryset = Tag.objects.none()
+
+    def get_queryset(self):
+        # Looked up per request, not at import: importing the URLconf must not
+        # query the DB, or `migrate` fails on an empty database.
+        pt = ContentType.objects.get_for_model(Project)
+        return (
+            Tag.objects.filter(
+                Q(tagged_items__content_type_id=pt.pk) | Q(tagged_items__isnull=True)
+            )
+            .distinct()
+            .order_by("name")
+        )

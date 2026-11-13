@@ -2,47 +2,20 @@
 
 from django.db import migrations
 
+# update() rather than get(): a fresh database has no tide rows yet, and the
+# migration must not fail there. Existing databases end up with the same values.
+TIDE_VALS = {"slack": 10, "low": 20, "rising": 30, "high": 40, "falling": 50}
+
 
 def assign_tides(apps, schema_editor):
     Tide = apps.get_model("api", "Tide")
-    slack = Tide.objects.get(name="slack")
-    low = Tide.objects.get(name="low")
-    rising = Tide.objects.get(name="rising")
-    high = Tide.objects.get(name="high")
-    falling = Tide.objects.get(name="falling")
-
-    slack.val = 10
-    low.val = 20
-    rising.val = 30
-    high.val = 40
-    falling.val = 50
-
-    slack.save()
-    low.save()
-    rising.save()
-    high.save()
-    falling.save()
+    for name, val in TIDE_VALS.items():
+        Tide.objects.filter(name=name).update(val=val)
 
 
 def revert_tides(apps, schema_editor):
     Tide = apps.get_model("api", "Tide")
-    slack = Tide.objects.get(name="slack")
-    low = Tide.objects.get(name="low")
-    rising = Tide.objects.get(name="rising")
-    high = Tide.objects.get(name="high")
-    falling = Tide.objects.get(name="falling")
-
-    slack.val = 10
-    low.val = 10
-    rising.val = 10
-    high.val = 10
-    falling.val = 10
-
-    slack.save()
-    low.save()
-    rising.save()
-    high.save()
-    falling.save()
+    Tide.objects.filter(name__in=TIDE_VALS).update(val=10)
 
 
 class Migration(migrations.Migration):
