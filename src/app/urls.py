@@ -1,8 +1,10 @@
+import re
+
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 from rest_framework.schemas import get_schema_view
 
 from api.urls import api_urls
@@ -41,4 +43,10 @@ urlpatterns = [
 urlpatterns += [path("api-auth/", include("rest_framework.urls", namespace="rest_framework"))]
 
 if settings.ENVIRONMENT in ("local",):
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(
+            rf"^{re.escape(settings.MEDIA_URL.lstrip('/'))}(?P<path>.*)$",
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        )
+    ]

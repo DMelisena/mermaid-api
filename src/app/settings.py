@@ -90,7 +90,7 @@ MIDDLEWARE = [
 # Django debug mode is opt-in in every environment: set DEBUG=True (e.g. in a
 # local .env) to turn it on. A public deployment must never run with it on,
 # because error pages then show tracebacks and settings.
-DEBUG = (os.environ.get("DEBUG") or "").strip().lower() in ("true", "1", "yes")
+DEBUG = os.environ.get("DEBUG", "").lower() == "true"
 TESTING = False
 DEBUG_LEVEL = "WARNING"
 CONN_MAX_AGE = 0
@@ -199,9 +199,9 @@ REST_FRAMEWORK = {
 
 # Database SSL. RDS enforces SSL (rds.force_ssl=1) in dev/prod, so require it
 # there. Local/CI Postgres (docker-compose, GitHub Actions service) serves no
-# TLS, so no sslmode is set for those. DB_SSLMODE (a libpq sslmode such as
-# disable, prefer or require) overrides either default.
-_db_sslmode = os.environ.get("DB_SSLMODE") or ("require" if ENVIRONMENT in ("dev", "prod") else "")
+# TLS, so no sslmode is set for those unless DB_SSLMODE (a libpq sslmode such as
+# disable, prefer or require) sets one. DB_SSLMODE is ignored in dev/prod.
+_db_sslmode = "require" if ENVIRONMENT in ("dev", "prod") else os.environ.get("DB_SSLMODE")
 _db_options = {"sslmode": _db_sslmode} if _db_sslmode else {}
 
 DATABASES = {

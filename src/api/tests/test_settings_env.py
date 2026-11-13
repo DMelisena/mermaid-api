@@ -45,7 +45,17 @@ def test_debug_off_unless_set(env):
     assert _settings(ENV=env)["debug"] is False
 
 
-@pytest.mark.parametrize("value,expected", [("True", True), ("true", True), ("False", False)])
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("True", True),
+        ("true", True),
+        ("TRUE", True),
+        ("False", False),
+        ("1", False),
+        ("yes", False),
+    ],
+)
 def test_debug_from_env(value, expected):
     assert _settings(ENV="local", DEBUG=value)["debug"] is expected
 
@@ -66,7 +76,12 @@ def test_db_sslmode_defaults():
 
 def test_db_sslmode_from_env():
     assert _settings(ENV="local", DB_SSLMODE="require")["db_options"] == {"sslmode": "require"}
-    assert _settings(ENV="prod", DB_SSLMODE="disable")["db_options"] == {"sslmode": "disable"}
+    assert _settings(ENV="local", DB_SSLMODE="disable")["db_options"] == {"sslmode": "disable"}
+
+
+@pytest.mark.parametrize("env", ["dev", "prod"])
+def test_db_sslmode_env_ignored_in_dev_prod(env):
+    assert _settings(ENV=env, DB_SSLMODE="disable")["db_options"] == {"sslmode": "require"}
 
 
 def test_sqs_endpoint_from_env_in_any_env():
